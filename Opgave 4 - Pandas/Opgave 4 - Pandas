@@ -1,0 +1,92 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+
+# Indstil Pandas til at vise tal med tusindseparatorer (punktum som separator)
+pd.options.display.float_format = lambda x: f"{x:,.0f}".replace(",", ".")
+
+# Funktion til at formatere beløb i millioner med komma som decimalseparator for plotting
+def format_mio(x, pos):
+    val = x / 1e6
+    return f"{val:.1f}".replace('.', ',')
+
+# Angiv stien til CSV-filen
+file_path = r'C:\Users\spac-46\Documents\GitHub\Uge 10, 2. undervisningsuge\Opgave 4 - Pandas\DKHousingPricesSample100k.csv'
+
+# 1. Læs CSV-filen ind (alle kolonner bevares, inkl. house_id)
+df = pd.read_csv(file_path)
+print("Første 10 rækker:")
+print(df.head(10))
+# Her vises fx house_id med de værdier, som fremgår af den oprindelige fil.
+
+# Opdater region og hustype med danske navne
+region_mapping = {
+    "Fyn & islands": "Fyn & øer",
+    "Jutland": "Jylland",
+    "Zealand": "Sjælland"
+}
+house_mapping = {
+    "Apartment": "Lejlighed",
+    "Farm": "Landejendom",
+    "Summerhouse": "Sommerhus",
+    "Townhouse": "Rækkehus"
+}
+df['region'] = df['region'].replace(region_mapping)
+df['house_type'] = df['house_type'].replace(house_mapping)
+
+# 2. Group by på region og beregn gennemsnit for purchase_price (Købspris)
+group_region = df.groupby('region')['purchase_price'].mean()
+print("\nGennemsnitlig købspris per region:")
+formatted_region = group_region.apply(lambda x: f"{x/1e6:.1f}".replace('.', ',') + " mio. kr.")
+# Fjern index-navnet og series-navnet, så det ikke printes
+formatted_region.index.name = None
+formatted_region.name = None
+print(formatted_region.to_string(header=False))
+
+# 3. Avanceret Group by: Gruppér på hustype og region med gennemsnit af purchase_price
+group_house_region = df.groupby(['house_type', 'region'])['purchase_price'].mean().reset_index()
+print("\nGennemsnitlig købspris per hustype og region:")
+print(group_house_region)
+
+# Plot: Gennemsnitlig købspris for hver hustype fordelt på region (i millioner)
+plt.figure(figsize=(10, 6))
+for hustype, grp in group_house_region.groupby('house_type'):
+    plt.plot(grp['region'], grp['purchase_price'], marker='o', label=hustype)
+plt.title('Gennemsnitlig Købspris per Region for hver Hustype', fontweight='bold')
+plt.xlabel('Region', fontweight='bold')
+plt.ylabel('Købspris (mio. kr.)', fontweight='bold')
+leg = plt.legend(title='Hustype')
+plt.setp(leg.get_title(), fontweight='bold')
+plt.grid(True)
+plt.gca().yaxis.set_major_formatter(FuncFormatter(format_mio))
+plt.show()
+
+# 4. Ekstra: Udtræk alle numeriske kolonner (uden at aggregere house_id) og beregn gennemsnit pr. hustype
+numeric_columns = df.select_dtypes(include='number').columns.drop('house_id', errors='ignore')
+group_by_house = df.groupby('house_type')[numeric_columns].mean().reset_index()
+
+# Custom formatter for udskrift:
+def make_formatter(col):
+    # Hvis kolonnen er af objekt-type (f.eks. hustype), returneres værdien uændret.
+    if group_by_house[col].dtype == 'O':
+        return lambda x: x
+    elif col in ['year_build', 'zip_code']:
+        return lambda x: str(int(float(x))) if pd.notnull(x) else ""
+    else:
+        return lambda x: f"{float(x):,.0f}".replace(",", ".") if pd.notnull(x) else ""
+
+custom_formatters = {col: make_formatter(col) for col in group_by_house.columns}
+
+print("\nGennemsnit for numeriske kolonner per hustype:")
+print(group_by_house.to_string(formatters=custom_formatters))
+
+# Plot: Gennemsnitlig købspris per hustype (søjlediagram)
+if 'purchase_price' in group_by_house.columns:
+    plt.figure(figsize=(8, 5))
+    plt.bar(group_by_house['house_type'], group_by_house['purchase_price'], color='orange')
+    plt.title('Gennemsnitlig Købspris per Hustype', fontweight='bold')
+    plt.xlabel('Hustype', fontweight='bold')
+    plt.ylabel('Købspris (mio. kr.)', fontweight='bold')
+    plt.grid(True)
+    plt.gca().yaxis.set_major_formatter(FuncFormatter(format_mio))
+    plt.show()
