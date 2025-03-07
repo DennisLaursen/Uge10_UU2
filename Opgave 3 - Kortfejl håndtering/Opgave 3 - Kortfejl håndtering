@@ -1,0 +1,42 @@
+import os
+import csv
+
+def migrate_data(source_file, destination_file):
+    try:
+        # Kontrollér om kildefilen eksisterer
+        if not os.path.exists(source_file):
+            raise FileNotFoundError(f"Fejl: Kildefilen '{source_file}' findes ikke.")
+        
+        # Åbn kildefilen og læs data
+        with open(source_file, mode='r', encoding='utf-8') as src:
+            reader = csv.reader(src)
+            data = list(reader)
+            
+            # Kontrollér om filen er tom
+            if not data:
+                raise ValueError("Fejl: Kildefilen er tom.")
+            
+        # Åbn destinationsfilen og skriv data
+        with open(destination_file, mode='w', encoding='utf-8', newline='') as dest:
+            writer = csv.writer(dest)
+            writer.writerows(data)
+            
+        print(f"Data migreret succesfuldt fra '{source_file}' til '{destination_file}'.")
+    
+    except FileNotFoundError as e:
+        print(e)
+    except ValueError as e:
+        print(e)
+    except PermissionError:
+        print(f"Fejl: Destinationsfilen '{destination_file}' er skrivebeskyttet.")
+    except csv.Error:
+        print("Fejl: Problem med CSV-formatet. Kontrollér, at filen er korrekt formatteret.")
+    except Exception as e:
+        print(f"Uventet fejl: {e}")
+
+# Dynamisk sti
+base_path = r"C:\Users\spac-46\Documents\GitHub\Uge 10, 2. undervisningsuge\Opgave 3 - Kortfejl håndtering"
+source_path = os.path.join(base_path, "source_data.csv")
+destination_path = os.path.join(base_path, "destination_data.csv")
+
+migrate_data(source_path, destination_path)

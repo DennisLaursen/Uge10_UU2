@@ -1,0 +1,98 @@
+import os
+from datetime import datetime
+from colorama import Fore, Style
+
+def analyze_log_file(log_file):
+    # Opret rapportmappe, hvis den ikke eksisterer
+    report_dir = os.path.join(os.path.dirname(log_file), 'Rapport')
+    os.makedirs(report_dir, exist_ok=True)
+
+    # Generer tidsstempel
+    timestamp = datetime.now().strftime('%Y-%m-%d %H.%M')
+
+    # Stier til outputfiler
+    error_file = os.path.join(report_dir, f'ERROR_{timestamp}.txt')
+    warning_file = os.path.join(report_dir, f'WARNING_{timestamp}.txt')
+
+    total_lines = 0
+    error_count = 0
+    warning_count = 0
+    success_count = 0
+    info_count = 0
+    unknown_count = 0  # Ukendte linjer tælles
+
+    try:
+        # Tjek om logfilen findes
+        if not os.path.exists(log_file):
+            print(Fore.RED + "ADVARSEL! Logfilen kan ikke identificeres. Tjek om logfilen findes på den ønskede placering" + Style.RESET_ALL)
+            return
+        
+        # Tjek om logfilen er tilgængelig
+        if not os.access(log_file, os.R_OK):
+            print(Fore.RED + "ADVARSEL! Scriptet kan ikke køres, da du har logfilen åben. Luk logfilen og kør scriptet igen." + Style.RESET_ALL)
+            return
+
+        # Åbn logfilen for læsning
+        with open(log_file, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            total_lines = len(lines)
+
+            # Håndtering af tom logfil
+            if total_lines == 0:
+                print(Fore.RED + "ADVARSEL! Logfilen er tom, og der er ingen data at analysere." + Style.RESET_ALL)
+                return
+
+            try:
+                # Åbn outputfilerne for skrivning
+                with open(error_file, 'w', encoding='utf-8') as error_out, open(warning_file, 'w', encoding='utf-8') as warning_out:
+                    for line in lines:
+                        if 'ERROR' in line:
+                            error_out.write(line)
+                            error_count += 1
+                        elif 'WARNING' in line:
+                            warning_out.write(line)
+                            warning_count += 1
+                        elif 'SUCCESS' in line:
+                            success_count += 1
+                        elif 'INFO' in line:
+                            info_count += 1
+                        else:
+                            unknown_count += 1  # Ukendte linjer tælles
+            
+            except PermissionError:
+                print(Fore.RED + "ADVARSEL! Kan ikke skrive til outputfilerne. Tjek dine permitter." + Style.RESET_ALL)
+                return
+
+        total_reported = error_count + warning_count + success_count + info_count + unknown_count
+        difference = total_lines - total_reported
+
+        if total_lines == total_reported:
+            print("Analyse fuldført!")
+            print(f"- Antal linjer i den oprindelige logfil: {total_lines}")
+            print(f"- Antal linjer i ERROR filen: {error_count}")
+            print(f"- Antal linjer i WARNING filen: {warning_count}")
+            print(f"- Antal SUCCESS linjer i den oprindelige logfil: {success_count}")
+            print(f"- Antal INFO linjer i den oprindelige logfil: {info_count}")
+            print(f"- Antal ukendte linjer: {unknown_count}")
+        else:
+            print(Fore.RED + "ADVARSEL! Antallet af optalte logs stemmer ikke overens med rapport dokumenterne!" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal linjer i den oprindelige logfil: {total_lines}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal linjer i ERROR filen: {error_count}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal linjer i WARNING filen: {warning_count}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal SUCCESS linjer i den oprindelige logfil: {success_count}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal INFO linjer i den oprindelige logfil: {info_count}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Antal ukendte linjer: {unknown_count}" + Style.RESET_ALL)
+            print(Fore.RED + f"- Differencen: {difference}" + Style.RESET_ALL)
+
+        print(f"Fejlmeddelelser gemt i: {error_file}")
+        print(f"Advarsler gemt i: {warning_file}")
+
+    except FileNotFoundError:
+        print(Fore.RED + "ADVARSEL! Logfilen kan ikke identificeres. Tjek om logfilen findes på den ønskede placering" + Style.RESET_ALL)
+    except Exception as e:
+        print(Fore.RED + f"En uventet fejl opstod: {e}" + Style.RESET_ALL)
+
+if __name__ == "__main__":
+    current_dir = os.path.dirname(__file__)
+    log_file_path = os.path.join(current_dir, 'app_log (logfil analyse) - random.txt')
+    analyze_log_file(log_file_path)
